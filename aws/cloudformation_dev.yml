@@ -3,16 +3,16 @@ Parameters:
   ProjectSource: 
     Type: String
     Default: "repo"
-    Description: "Source control URL (e.g. Github)"
+    Description: "Github"
   GithubOwner:
     Type: String
-    Default: "Whiteprompt"
+    Default: "marianoselvaggi"
   GithubRepo:
     Type: String
-    Default: "SharedVision"
+    Default: "/whiteprompt/10165-Clark-SharedVision-FrontEnd"
   GithubOAuthToken:
     Type: String
-    Description: "Github personal access token"
+    Description: "dead98e55ac8683a5307e22542e6441f2d9ccd29"
   
 Resources:
   CodePipeline:
@@ -97,8 +97,8 @@ Resources:
                   - "s3:PutObject"
                   - "s3:PutObjectAcl"
                 Resource: 
-                  - !GetAtt DeployBucket.Arn
-                  - !Join ['', [!GetAtt DeployBucket.Arn, "/*"]]
+                  - !GetAtt DevBucket.Arn
+                  - !Join ['', [!GetAtt DevBucket.Arn, "/*"]]
               -
                 Effect: Allow
                 Action:
@@ -165,16 +165,16 @@ Resources:
               commands:
                 - echo Installing source NPM dependencies...
                 - npm install
+                - cp /src/config.js.def /src/config.js
             build:
               commands:
                 - echo Build started on `date`
                 - npm run build
             post_build:
               commands:
-                - aws s3 cp --recursive --acl public-read ./build s3://${DeployBucket}/ 
-                - aws s3 cp --acl public-read --cache-control="max-age=0, no-cache, no-store, must-revalidate" ./build/service-worker.js s3://${DeployBucket}/
-                - aws s3 cp --acl public-read --cache-control="max-age=0, no-cache, no-store, must-revalidate" ./build/index.html s3://${DeployBucket}/
-                - aws cloudfront create-invalidation --distribution-id ${Distribution} --paths /index.html /service-worker.js
+                - aws s3 cp --recursive --acl public-read ./build s3://${DevBucket}/ 
+                - aws s3 cp --acl public-read --cache-control="max-age=0, no-cache, no-store, must-revalidate" ./build/service-worker.js s3://${DevBucket}/
+                - aws s3 cp --acl public-read --cache-control="max-age=0, no-cache, no-store, must-revalidate" ./build/index.html s3://${DevBucket}
           artifacts:
             files:
               - '**/*'
@@ -182,27 +182,9 @@ Resources:
   PipelineBucket: 
     Type: 'AWS::S3::Bucket'
     Properties: {}
-  DeployBucket:
+  DevBucket:
     Type: 'AWS::S3::Bucket'
     Properties:
       WebsiteConfiguration:
         IndexDocument: index.html
-  Distribution:
-    Type: "AWS::CloudFront::Distribution"
-    Properties:
-      DistributionConfig:
-        Origins:
-          - 
-            DomainName: !GetAtt DeployBucket.DomainName
-            Id: !Ref DeployBucket
-            S3OriginConfig:
-              OriginAccessIdentity: ''
-        DefaultRootObject: index.html
-        Enabled: true
-        DefaultCacheBehavior: 
-          MinTTL: 86400
-          MaxTTL: 31536000
-          ForwardedValues: 
-            QueryString: true
-          TargetOriginId: !Ref DeployBucket
-          ViewerProtocolPolicy: "redirect-to-https"
+ 
